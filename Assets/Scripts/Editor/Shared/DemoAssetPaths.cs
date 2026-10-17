@@ -39,6 +39,7 @@ namespace Practice.Editor
         public const string SceneFolder = "Assets/Scenes";
         public const string Practice1Scene = SceneFolder + "/Practice1_XBot.unity";
         public const string Practice2Scene = SceneFolder + "/Practice2_AirplaneWing.unity";
+        public const string Week1Scene = SceneFolder + "/Week1_AirplaneTransform.unity";
 
         /// <summary>Unity's default scene: the host scene used to park an empty Untitled scene, never a demo scene.</summary>
         public const string DefaultScene = SceneFolder + "/SampleScene.unity";
