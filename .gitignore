@@ -118,4 +118,14 @@ InitTestScene*.unity*
 .resources/
 .vscode/
 docs/
+.agents/
+tasks/
+trace/
+specs/
+contracts/
+research/
+validation/
+*.md
+!README.md
+
 
