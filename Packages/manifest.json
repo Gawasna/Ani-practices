@@ -1,7 +1,10 @@
 {
   "dependencies": {
+    "com.unity.2d.animation": "15.1.0",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.2d.tilemap": "1.0.0",
+    "com.unity.2d.tilemap.extras": "8.0.3",
+    "com.unity.2d.tooling": "3.0.1",
     "com.unity.ai.assistant": "2.20.0-pre.2",
     "com.unity.ai.inference": "2.6.1",
     "com.unity.ai.navigation": "2.0.14",
