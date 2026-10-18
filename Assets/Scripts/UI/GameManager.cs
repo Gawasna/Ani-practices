@@ -7,52 +7,46 @@ public class GameManager : MonoBehaviour
 {
     [Header("UI References")]
     [SerializeField] private GameObject menuCanvas;
-    [SerializeField] private TMP_Text titleText;
-    [SerializeField] private TMP_Text messageText;
-    [SerializeField] private TMP_Text continueButtonText;
-    [SerializeField] private TMP_Text restartButtonText;
+    [SerializeField] private TMP_Text questionText;
+    [SerializeField] private TMP_Text yesButtonText;
+    [SerializeField] private TMP_Text noButtonText;
 
     [Header("Buttons")]
-    [SerializeField] private Button continueButton;
-    [SerializeField] private Button restartButton;
+    [SerializeField] private Button yesButton;
+    [SerializeField] private Button noButton;
 
     private void Awake()
     {
-        // Setup dynamic text contents as required by Slide 3.3
-        if (titleText != null)
+        // Dynamic content loaded from code: "Do you want to continue", 1 Co, 2 Khong
+        if (questionText != null)
         {
-            titleText.text = "Flight Result";
+            questionText.text = "Do you want to continue";
         }
 
-        if (messageText != null)
+        if (yesButtonText != null)
         {
-            messageText.text = "Airplane collided with the barrier!";
+            yesButtonText.text = "1. Có";
         }
 
-        if (continueButtonText != null)
+        if (noButtonText != null)
         {
-            continueButtonText.text = "Continue";
+            noButtonText.text = "2. Không";
         }
 
-        if (restartButtonText != null)
+        // Button actions
+        if (yesButton != null)
         {
-            restartButtonText.text = "Restart";
+            yesButton.onClick.RemoveAllListeners();
+            yesButton.onClick.AddListener(NextScene);
         }
 
-        // Bind button actions
-        if (continueButton != null)
+        if (noButton != null)
         {
-            continueButton.onClick.RemoveAllListeners();
-            continueButton.onClick.AddListener(NextScene);
+            noButton.onClick.RemoveAllListeners();
+            noButton.onClick.AddListener(RestartScene);
         }
 
-        if (restartButton != null)
-        {
-            restartButton.onClick.RemoveAllListeners();
-            restartButton.onClick.AddListener(RestartScene);
-        }
-
-        // Canvas is disabled by default
+        // Hide canvas initially
         if (menuCanvas != null)
         {
             menuCanvas.SetActive(false);
@@ -85,7 +79,6 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // If only one scene is available, reload current scene
             RestartScene();
         }
     }
