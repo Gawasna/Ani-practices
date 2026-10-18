@@ -566,4 +566,128 @@ public static class Week2Setup
             AssetDatabase.DeleteAsset(legacyPath);
         }
     }
+
+    [MenuItem("Week2/Create Floor Tile Palette & Standardize Scene1")]
+    public static void CreateFloorPaletteAndStandardizeScene1()
+    {
+        CreateFloorTilePalettePrefab();
+        StandardizeScene1Tilemap();
+    }
+
+    [InitializeOnLoadMethod]
+    private static void AutoEnsureFloorPaletteAndScene1()
+    {
+        EditorApplication.delayCall += () =>
+        {
+            if (!File.Exists("Assets/Palettes/FloorPalette.prefab"))
+            {
+                CreateFloorPaletteAndStandardizeScene1();
+            }
+        };
+    }
+
+    public static void CreateFloorTilePalettePrefab()
+    {
+        string palettePath = "Assets/Palettes/FloorPalette.prefab";
+        if (!Directory.Exists("Assets/Palettes"))
+        {
+            Directory.CreateDirectory("Assets/Palettes");
+        }
+
+        GameObject paletteObj = new GameObject("FloorPalette");
+        Grid grid = paletteObj.AddComponent<Grid>();
+        grid.cellSize = new Vector3(1f, 1f, 0f);
+
+        GameObject layerObj = new GameObject("Layer1");
+        layerObj.transform.parent = paletteObj.transform;
+        Tilemap tilemap = layerObj.AddComponent<Tilemap>();
+        layerObj.AddComponent<TilemapRenderer>();
+
+        string[] guids = AssetDatabase.FindAssets("t:Tile TilesetFloor_", new[] { "Assets/Art/Tiles" });
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            Tile tile = AssetDatabase.LoadAssetAtPath<Tile>(path);
+            if (tile == null) continue;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            // Format: TilesetFloor_{row}_{col}
+            string[] parts = name.Split('_');
+            if (parts.Length >= 3 && int.TryParse(parts[1], out int row) && int.TryParse(parts[2], out int col))
+            {
+                tilemap.SetTile(new Vector3Int(col, -row, 0), tile);
+            }
+        }
+
+        PrefabUtility.SaveAsPrefabAsset(paletteObj, palettePath);
+        Object.DestroyImmediate(paletteObj);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("FloorPalette created successfully at " + palettePath);
+    }
+
+    public static void StandardizeScene1Tilemap()
+    {
+        string scenePath = "Assets/Scenes/Scene1.unity";
+        Scene scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        var slippery = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/Slippery.physicsMaterial2D");
+
+        // 1. Tilemap_Ground standardization (match Scene2 Platforms Tilemap mechanism)
+        GameObject groundObj = GameObject.Find("Tilemap_Ground");
+        if (groundObj != null)
+        {
+            groundObj.layer = LayerMask.NameToLayer("Ground");
+            if (groundObj.layer == -1) groundObj.layer = 6;
+
+            var tmRenderer = groundObj.GetComponent<TilemapRenderer>();
+            if (tmRenderer != null)
+            {
+                tmRenderer.sortingLayerName = "Default";
+                tmRenderer.sortingOrder = 1;
+            }
+
+            var tmCollider = groundObj.GetComponent<TilemapCollider2D>();
+            if (tmCollider == null) tmCollider = groundObj.AddComponent<TilemapCollider2D>();
+            tmCollider.compositeOperation = TilemapCollider2D.CompositeOperation.Merge;
+            if (slippery != null) tmCollider.sharedMaterial = slippery;
+
+            var rb = groundObj.GetComponent<Rigidbody2D>();
+            if (rb == null) rb = groundObj.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Static;
+            rb.simulated = true;
+
+            var compCollider = groundObj.GetComponent<CompositeCollider2D>();
+            if (compCollider == null) compCollider = groundObj.AddComponent<CompositeCollider2D>();
+            compCollider.geometryType = CompositeCollider2D.GeometryType.Polygons;
+            compCollider.edgeRadius = 0.02f;
+            if (slippery != null) compCollider.sharedMaterial = slippery;
+        }
+
+        // 2. Tilemap_Background standardization (match Scene2 Background Tilemap mechanism)
+        GameObject bgObj = GameObject.Find("Tilemap_Background");
+        if (bgObj != null)
+        {
+            bgObj.layer = LayerMask.NameToLayer("Background");
+            if (bgObj.layer == -1) bgObj.layer = 9;
+
+            var tmRenderer = bgObj.GetComponent<TilemapRenderer>();
+            if (tmRenderer != null)
+            {
+                tmRenderer.sortingLayerName = "Default";
+                tmRenderer.sortingOrder = 0;
+            }
+
+            // Ensure no colliders on background
+            var colliders = bgObj.GetComponents<Collider2D>();
+            foreach (var col in colliders)
+            {
+                Object.DestroyImmediate(col);
+            }
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, scenePath);
+        Debug.Log("Scene1 Tilemap standardized to match Scene2 mechanism.");
+    }
 }
