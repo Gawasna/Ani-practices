@@ -231,26 +231,55 @@ public static class Week2Setup
         camObj.AddComponent<AudioListener>();
         camObj.AddComponent<CinemachineBrain>();
 
-        // 2. Simple ground platform using Tilemap
+        // 2. Tilemaps: Background (1_21), Surface (1_7), Underground (1_8)
         GameObject gridObj = new GameObject("Grid");
         gridObj.AddComponent<Grid>();
-        GameObject floorObj = new GameObject("Tilemap_Floor");
-        floorObj.transform.parent = gridObj.transform;
-        Tilemap tm = floorObj.AddComponent<Tilemap>();
-        var r = floorObj.AddComponent<TilemapRenderer>();
-        r.sortingOrder = 0;
-        floorObj.AddComponent<TilemapCollider2D>();
 
-        Tile floorTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_7.asset");
-        for (int x = -8; x <= 8; x++)
+        // Background (tile 1_21)
+        GameObject bgObj = new GameObject("Tilemap_Background");
+        bgObj.transform.parent = gridObj.transform;
+        Tilemap bgMap = bgObj.AddComponent<Tilemap>();
+        var bgR = bgObj.AddComponent<TilemapRenderer>();
+        bgR.sortingOrder = 0;
+
+        Tile bgTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetFloor_1_21.asset");
+        for (int x = -14; x <= 14; x++)
         {
-            tm.SetTile(new Vector3Int(x, -1, 0), floorTile);
+            for (int y = 0; y <= 6; y++)
+            {
+                bgMap.SetTile(new Vector3Int(x, y, 0), bgTile);
+            }
         }
+
+        // Ground (surface 1_7, underground 1_8)
+        GameObject groundObj = new GameObject("Tilemap_Ground");
+        groundObj.transform.parent = gridObj.transform;
+        Tilemap groundMap = groundObj.AddComponent<Tilemap>();
+        var groundR = groundObj.AddComponent<TilemapRenderer>();
+        groundR.sortingOrder = 1;
+        groundObj.AddComponent<TilemapCollider2D>();
+
+        Tile surfaceTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetFloor_1_7.asset");
+        Tile undergroundTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetFloor_1_8.asset");
+
+        for (int x = -14; x <= 14; x++)
+        {
+            groundMap.SetTile(new Vector3Int(x, -1, 0), surfaceTile);
+            for (int y = -2; y >= -6; y--)
+            {
+                groundMap.SetTile(new Vector3Int(x, y, 0), undergroundTile);
+            }
+        }
+
+        EditorUtility.SetDirty(bgMap);
+        EditorUtility.SetDirty(bgObj);
+        EditorUtility.SetDirty(groundMap);
+        EditorUtility.SetDirty(groundObj);
 
         // 3. Goober (Enemy) with 5 required components
         Sprite gooberSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Sprites/SPA_Enemy_Right.png");
         GameObject goober = new GameObject("Goober (Enemy)");
-        goober.transform.position = new Vector3(0, 0f, 0);
+        goober.transform.position = new Vector3(0, -0.3f, 0);
 
         var gooberSr = goober.AddComponent<SpriteRenderer>();
         gooberSr.sprite = gooberSprite;
@@ -287,8 +316,6 @@ public static class Week2Setup
         framing.m_DeadZoneWidth = 0.1f;
         framing.m_DeadZoneHeight = 0.1f;
 
-        EditorUtility.SetDirty(tm);
-        EditorUtility.SetDirty(floorObj);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, scenePath);
     }
