@@ -388,116 +388,70 @@ public static class Week2Setup
         EditorSceneManager.SaveScene(scene, scenePath);
     }
 
-    private static void BuildScene2()
+    [MenuItem("Week2/Rebuild Scene2 (Slide 1.4 Standard)")]
+    public static void BuildScene2()
     {
         string scenePath = "Assets/Scenes/Scene2.unity";
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        // 1. 2D Camera
-        GameObject camObj = new GameObject("Main Camera");
-        camObj.tag = "MainCamera";
-        camObj.transform.position = new Vector3(0, 0, -10);
-        Camera cam = camObj.AddComponent<Camera>();
-        cam.orthographic = true;
-        cam.orthographicSize = 6f;
-        cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.12f, 0.13f, 0.17f);
-        camObj.AddComponent<AudioListener>();
-
-        // 2. Grid & Tilemaps
-        GameObject gridObj = new GameObject("Grid");
-        Grid grid = gridObj.AddComponent<Grid>();
-        grid.cellSize = new Vector3(1f, 1f, 0f);
-
-        // Ground Layer
-        GameObject groundObj = new GameObject("Tilemap_Ground");
-        groundObj.transform.parent = gridObj.transform;
-        Tilemap groundMap = groundObj.AddComponent<Tilemap>();
-        var groundRenderer = groundObj.AddComponent<TilemapRenderer>();
-        groundRenderer.sortingOrder = 0;
-
-        // Decorations Layer
-        GameObject decoObj = new GameObject("Tilemap_Decorations");
-        decoObj.transform.parent = gridObj.transform;
-        Tilemap decoMap = decoObj.AddComponent<Tilemap>();
-        var decoRenderer = decoObj.AddComponent<TilemapRenderer>();
-        decoRenderer.sortingOrder = 1;
-
-        // Obstacles Layer with Collider
-        GameObject obstObj = new GameObject("Tilemap_Obstacles");
-        obstObj.transform.parent = gridObj.transform;
-        Tilemap obstMap = obstObj.AddComponent<Tilemap>();
-        var obstRenderer = obstObj.AddComponent<TilemapRenderer>();
-        obstRenderer.sortingOrder = 2;
-        obstObj.AddComponent<TilemapCollider2D>();
-
-        // 3. Load Persistent Tile Assets Directly
-        Tile grassTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_7.asset")
-                      ?? AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_4.asset");
-        Tile pathTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_1.asset");
-        Tile decoBush = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_0_10.asset");
-        Tile decoFlower = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_6_10.asset");
-        Tile obstRock = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_0_8.asset")
-                     ?? AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_4_8.asset");
-
-        // Paint Ground (-10 to 10 X, -6 to 6 Y)
-        for (int x = -10; x <= 10; x++)
+        // 1. Instantiate Cameras
+        GameObject cameraPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/1.2_Basic-Game-Object/Cameras.prefab");
+        if (cameraPrefab != null)
         {
-            for (int y = -6; y <= 6; y++)
-            {
-                if (y == -1 || y == 0)
-                {
-                    groundMap.SetTile(new Vector3Int(x, y, 0), pathTile ?? grassTile);
-                }
-                else
-                {
-                    groundMap.SetTile(new Vector3Int(x, y, 0), grassTile);
-                }
-            }
+            PrefabUtility.InstantiatePrefab(cameraPrefab);
+        }
+        else
+        {
+            GameObject camObj = new GameObject("Main Camera");
+            camObj.tag = "MainCamera";
+            camObj.transform.position = new Vector3(0, 0, -10);
+            Camera cam = camObj.AddComponent<Camera>();
+            cam.orthographic = true;
+            cam.orthographicSize = 5f;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.45f, 0.75f, 0.95f);
+            camObj.AddComponent<AudioListener>();
+            camObj.AddComponent<CinemachineBrain>();
         }
 
-        // Paint Decorations on upper and lower grass areas
-        for (int x = -8; x <= 8; x += 2)
+        // 2. Instantiate Tilemap Grid
+        GameObject gridPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Tilemap Grid.prefab")
+                             ?? AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/1.2_Basic-Game-Object/Tilemap Grid.prefab");
+        if (gridPrefab != null)
         {
-            if (x % 3 == 0 && decoFlower != null)
-            {
-                decoMap.SetTile(new Vector3Int(x, 2, 0), decoFlower);
-                decoMap.SetTile(new Vector3Int(x + 1, -3, 0), decoFlower);
-            }
-            if (x % 4 == 0 && decoBush != null)
-            {
-                decoMap.SetTile(new Vector3Int(x, 3, 0), decoBush);
-                decoMap.SetTile(new Vector3Int(x, -4, 0), decoBush);
-            }
+            PrefabUtility.InstantiatePrefab(gridPrefab);
         }
 
-        // Paint Obstacles at borders
-        for (int x = -9; x <= 9; x += 3)
+        // 3. Instantiate Ginger (Player)
+        GameObject gingerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/1.2_Basic-Game-Object/Ginger (Player).prefab");
+        GameObject gingerInstance = null;
+        if (gingerPrefab != null)
         {
-            if (obstRock != null)
-            {
-                obstMap.SetTile(new Vector3Int(x, 5, 0), obstRock);
-                obstMap.SetTile(new Vector3Int(x, -5, 0), obstRock);
-            }
-        }
-        for (int y = -3; y <= 3; y += 2)
-        {
-            if (obstRock != null && y != -1 && y != 0)
-            {
-                obstMap.SetTile(new Vector3Int(-9, y, 0), obstRock);
-                obstMap.SetTile(new Vector3Int(9, y, 0), obstRock);
-            }
+            gingerInstance = PrefabUtility.InstantiatePrefab(gingerPrefab) as GameObject;
+            gingerInstance.transform.position = new Vector3(-4.56f, -2.19f, 0);
         }
 
-        EditorUtility.SetDirty(groundMap);
-        EditorUtility.SetDirty(groundObj);
-        EditorUtility.SetDirty(decoMap);
-        EditorUtility.SetDirty(decoObj);
-        EditorUtility.SetDirty(obstMap);
-        EditorUtility.SetDirty(obstObj);
+        // 4. Instantiate Exit
+        GameObject exitPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Exit.prefab");
+        if (exitPrefab != null)
+        {
+            GameObject exitInstance = PrefabUtility.InstantiatePrefab(exitPrefab) as GameObject;
+            exitInstance.transform.position = new Vector3(-2.27f, 4.89f, 0);
+        }
+
+        // 5. Connect Cinemachine Virtual Camera to Ginger
+        if (gingerInstance != null)
+        {
+            CinemachineVirtualCamera vcam = Object.FindObjectOfType<CinemachineVirtualCamera>();
+            if (vcam != null)
+            {
+                vcam.Follow = gingerInstance.transform;
+            }
+        }
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene, scenePath);
+        Debug.Log("Scene2 rebuilt successfully based on Slide 1.4 standard.");
     }
 
     private static void UpdateBuildSettings()
