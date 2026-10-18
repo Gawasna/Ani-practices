@@ -21,6 +21,9 @@ public class PlayerController : MonoBehaviour
     float gravityScaleAtStart;
 
     bool isAlive = true;
+    bool hasRunningParam;
+    bool hasClimbingParam;
+    bool hasDyingParam;
 
     void Start()
     {
@@ -31,6 +34,17 @@ public class PlayerController : MonoBehaviour
         if (myRigidbody != null)
         {
             gravityScaleAtStart = myRigidbody.gravityScale;
+        }
+
+        // Cache animator parameters safely
+        if (myAnimator != null)
+        {
+            foreach (var p in myAnimator.parameters)
+            {
+                if (p.name == "isRunning") hasRunningParam = true;
+                if (p.name == "isClimbing") hasClimbingParam = true;
+                if (p.name == "Dying") hasDyingParam = true;
+            }
         }
 
         // Auto-bind Cinemachine cameras to follow Player
@@ -108,7 +122,7 @@ public class PlayerController : MonoBehaviour
         myRigidbody.linearVelocity = playerVelocity;
 
         bool playerHasHorizontalSpeed = Mathf.Abs(myRigidbody.linearVelocity.x) > Mathf.Epsilon;
-        if (myAnimator != null)
+        if (myAnimator != null && hasRunningParam)
         {
             myAnimator.SetBool("isRunning", playerHasHorizontalSpeed);
         }
@@ -129,7 +143,7 @@ public class PlayerController : MonoBehaviour
         if (myFeetCollider == null || !myFeetCollider.IsTouchingLayers(LayerMask.GetMask("Climbing"))) 
         { 
             if (myRigidbody != null) myRigidbody.gravityScale = gravityScaleAtStart;
-            if (myAnimator != null) myAnimator.SetBool("isClimbing", false);
+            if (myAnimator != null && hasClimbingParam) myAnimator.SetBool("isClimbing", false);
             return;
         }
         
@@ -138,7 +152,7 @@ public class PlayerController : MonoBehaviour
         myRigidbody.gravityScale = 0f;
 
         bool playerHasVerticalSpeed = Mathf.Abs(myRigidbody.linearVelocity.y) > Mathf.Epsilon;
-        if (myAnimator != null)
+        if (myAnimator != null && hasClimbingParam)
         {
             myAnimator.SetBool("isClimbing", playerHasVerticalSpeed);
         }
@@ -149,7 +163,7 @@ public class PlayerController : MonoBehaviour
         if (myBodyCollider != null && myBodyCollider.IsTouchingLayers(LayerMask.GetMask("Enemies", "Hazards")))
         {
             isAlive = false;
-            if (myAnimator != null) myAnimator.SetTrigger("Dying");
+            if (myAnimator != null && hasDyingParam) myAnimator.SetTrigger("Dying");
             if (myRigidbody != null) myRigidbody.linearVelocity = deathKick;
             // FindObjectOfType<GameSession>().ProcessPlayerDeath();
         }
