@@ -456,6 +456,96 @@ public static class Week2Setup
         Debug.Log("Scene2 rebuilt successfully based on Slide 1.4 standard.");
     }
 
+    [MenuItem("Week2/Replace Player with Goober in Scene2")]
+    public static void ReplacePlayerWithGoober()
+    {
+        string scenePath = "Assets/Scenes/Scene2.unity";
+        var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        // 1. Destroy old Ginger (Player) if exists
+        var oldPlayer = GameObject.Find("Ginger (Player)");
+        Vector3 spawnPos = new Vector3(-16.3f, 6.5f, 0f);
+        if (oldPlayer != null)
+        {
+            spawnPos = oldPlayer.transform.position;
+            Object.DestroyImmediate(oldPlayer);
+        }
+
+        var existingGooberPlayer = GameObject.Find("Goober (Player)");
+        if (existingGooberPlayer != null)
+        {
+            Object.DestroyImmediate(existingGooberPlayer);
+        }
+
+        // 2. Create Goober (Player)
+        GameObject goober = new GameObject("Goober (Player)");
+        goober.tag = "Player";
+        goober.layer = LayerMask.NameToLayer("Player");
+        if (goober.layer == -1) goober.layer = 8;
+        goober.transform.position = spawnPos;
+
+        // SpriteRenderer
+        var sr = goober.AddComponent<SpriteRenderer>();
+        var gooberSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Sprites/SPA_Enemy_Right.png")
+                        ?? AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Sprites/SPA_Enemy_Right.png");
+        sr.sprite = gooberSprite;
+        sr.sortingLayerName = "Default";
+        sr.sortingOrder = 10; // Always visible in front of all tilemaps!
+
+        // Rigidbody2D
+        var rb = goober.AddComponent<Rigidbody2D>();
+        rb.bodyType = RigidbodyType2D.Dynamic;
+        rb.mass = 1f;
+        rb.gravityScale = 3f;
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+
+        // Physics material
+        var slippery = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/Slippery.physicsMaterial2D");
+
+        // Body collider (CapsuleCollider2D)
+        var bodyCol = goober.AddComponent<CapsuleCollider2D>();
+        bodyCol.direction = CapsuleDirection2D.Vertical;
+        bodyCol.offset = new Vector2(0f, -0.05f);
+        bodyCol.size = new Vector2(0.68f, 0.68f);
+        if (slippery != null) bodyCol.sharedMaterial = slippery;
+
+        // Feet collider (BoxCollider2D) for ground detection
+        var feetCol = goober.AddComponent<BoxCollider2D>();
+        feetCol.offset = new Vector2(0f, -0.35f);
+        feetCol.size = new Vector2(0.5f, 0.15f);
+
+        // Animator
+        var anim = goober.AddComponent<Animator>();
+        var animController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Goober.controller")
+                          ?? AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Slide 1.3/Animations/Goober.controller");
+        if (animController != null)
+        {
+            anim.runtimeAnimatorController = animController;
+        }
+
+        // PlayerController script
+        goober.AddComponent<PlayerController>();
+
+        // 3. Update Cinemachine Virtual Camera(s) to follow Goober (Player)
+        var vcams = Object.FindObjectsByType<CinemachineVirtualCamera>(FindObjectsInactive.Include);
+        foreach (var vcam in vcams)
+        {
+            vcam.Follow = goober.transform;
+        }
+
+        var stateDrivenCams = Object.FindObjectsByType<CinemachineStateDrivenCamera>(FindObjectsInactive.Include);
+        foreach (var sdc in stateDrivenCams)
+        {
+            sdc.Follow = goober.transform;
+            sdc.m_AnimatedTarget = anim;
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("Successfully replaced player with Goober (Player) in Scene2!");
+    }
+
     private static void UpdateBuildSettings()
     {
         EditorBuildSettingsScene[] scenes = new EditorBuildSettingsScene[]
