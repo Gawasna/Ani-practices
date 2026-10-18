@@ -43,6 +43,74 @@ public static class Week2Setup
         Debug.Log("Week 2 setup completed: Scene1 and Scene2 created.");
     }
 
+    [MenuItem("Week2/Fix Scene1 Camera")]
+    public static void FixScene1Camera()
+    {
+        string scenePath = "Assets/Scenes/Scene1.unity";
+        Scene scene = EditorSceneManager.OpenScene(scenePath);
+
+        // 1. Setup Main Camera
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            GameObject camObj = new GameObject("Main Camera");
+            camObj.tag = "MainCamera";
+            cam = camObj.AddComponent<Camera>();
+            camObj.AddComponent<AudioListener>();
+        }
+        cam.transform.position = new Vector3(0, 0.38f, -10f);
+        cam.orthographic = true;
+        cam.orthographicSize = 4.5f;
+        cam.nearClipPlane = 0.1f;
+        cam.farClipPlane = 100f;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.45f, 0.75f, 0.95f);
+
+        var brain = cam.GetComponent<CinemachineBrain>();
+        if (brain == null)
+        {
+            brain = cam.gameObject.AddComponent<CinemachineBrain>();
+        }
+        brain.m_UpdateMethod = CinemachineBrain.UpdateMethod.LateUpdate;
+
+        // 2. Setup Follow Camera (destroy and recreate to ensure clean pipeline)
+        GameObject vcamObj = GameObject.Find("Follow Camera");
+        if (vcamObj != null)
+        {
+            Object.DestroyImmediate(vcamObj);
+        }
+
+        vcamObj = new GameObject("Follow Camera");
+        vcamObj.transform.position = new Vector3(0, 0.38f, -10f);
+
+        var vcam = vcamObj.AddComponent<CinemachineVirtualCamera>();
+        var goober = GameObject.Find("Goober (Enemy)");
+        if (goober != null)
+        {
+            vcam.Follow = goober.transform;
+        }
+        vcam.m_Lens.OrthographicSize = 4.5f;
+        vcam.m_Lens.NearClipPlane = 0.1f;
+        vcam.m_Lens.FarClipPlane = 100f;
+
+        var framing = vcam.AddCinemachineComponent<CinemachineFramingTransposer>();
+        framing.m_CameraDistance = 10f;
+        framing.m_XDamping = 1f;
+        framing.m_YDamping = 1f;
+        framing.m_ZDamping = 1f;
+        framing.m_ScreenX = 0.5f;
+        framing.m_ScreenY = 0.5f;
+        framing.m_DeadZoneWidth = 0.1f;
+        framing.m_DeadZoneHeight = 0.1f;
+
+        EditorUtility.SetDirty(cam.gameObject);
+        EditorUtility.SetDirty(vcamObj);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+
+        Debug.Log("Scene1 camera fixed successfully: sky blue background, position Z=-10, Framing Transposer active.");
+    }
+
     private static void SetupGroundSprite()
     {
         string path = "Assets/Art/Sprites/GroundBlock.png";
