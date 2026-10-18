@@ -10,25 +10,53 @@ using System.IO;
 
 public static class Week2Setup
 {
-    [MenuItem("Week2/Setup Full Tilemap Scene")]
+    [MenuItem("Week2/Setup Assignment Scenes")]
     public static void RunFullSetup()
     {
         // 1. Setup Enemy Animation & Controller
         SetupEnemyAnimation();
 
-        // 2. Slice Tilesets
+        // 2. Setup Ground Sprite
+        SetupGroundSprite();
+
+        // 3. Slice Tilesets
         SliceTilesets();
 
-        // 3. Generate Tile Assets
+        // 4. Generate Tile Assets
         var tileDict = GenerateTileAssets();
 
-        // 4. Create Palette Prefab
+        // 5. Create Palette Prefab
         CreateTilePalettePrefab(tileDict);
 
-        // 5. Build Scene with Tilemap
-        BuildTilemapScene(tileDict);
+        // 6. Build Scene1 (Thuc hanh 1.3: Components & Cinemachine)
+        BuildScene1();
 
-        Debug.Log("Week 2 Tilemap & Cinemachine setup completed successfully!");
+        // 7. Build Scene2 (Thuc hanh 1.4: Tilemap & Palette)
+        BuildScene2();
+
+        // 8. Configure Build Settings
+        UpdateBuildSettings();
+
+        // 9. Remove legacy SampleScene
+        RemoveLegacySampleScene();
+
+        Debug.Log("Week 2 setup completed: Scene1 and Scene2 created.");
+    }
+
+    private static void SetupGroundSprite()
+    {
+        string path = "Assets/Art/Sprites/GroundBlock.png";
+        if (!File.Exists(path)) return;
+
+        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spritePixelsPerUnit = 16;
+            importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.SaveAndReimport();
+        }
     }
 
     private static void SetupEnemyAnimation()
@@ -85,7 +113,6 @@ public static class Week2Setup
     {
         string[] tilesetPaths = new[] {
             "Assets/Art/Tilesets/TilesetField.png",
-            "Assets/Art/Tilesets/TilesetFloor.png",
             "Assets/Art/Tilesets/TilesetNature.png"
         };
 
@@ -124,7 +151,6 @@ public static class Week2Setup
             }
             importer.spritesheet = metas.ToArray();
             importer.SaveAndReimport();
-            Debug.Log($"Sliced {path}: {cols}x{rows} = {metas.Count} tiles");
         }
     }
 
@@ -133,7 +159,6 @@ public static class Week2Setup
         var tileDict = new Dictionary<string, Tile>();
         string[] tilesetPaths = new[] {
             "Assets/Art/Tilesets/TilesetField.png",
-            "Assets/Art/Tilesets/TilesetFloor.png",
             "Assets/Art/Tilesets/TilesetNature.png"
         };
 
@@ -157,7 +182,6 @@ public static class Week2Setup
             }
         }
         AssetDatabase.SaveAssets();
-        Debug.Log($"Generated {tileDict.Count} Tile assets in Assets/Art/Tiles/");
         return tileDict;
     }
 
@@ -173,7 +197,6 @@ public static class Week2Setup
         Tilemap tilemap = layerObj.AddComponent<Tilemap>();
         layerObj.AddComponent<TilemapRenderer>();
 
-        // Paint a preview 5x5 grid of sample tiles into the palette
         int col = 0, row = 0;
         foreach (var kvp in tileDict)
         {
@@ -183,55 +206,110 @@ public static class Week2Setup
             {
                 col = 0;
                 row++;
-                if (row >= 8) break; // Keep palette compact
+                if (row >= 8) break;
             }
         }
 
         PrefabUtility.SaveAsPrefabAsset(paletteObj, palettePath);
         Object.DestroyImmediate(paletteObj);
-        Debug.Log($"Created Tile Palette prefab at {palettePath}");
     }
 
-    private static void BuildTilemapScene(Dictionary<string, Tile> tileDict)
+    private static void BuildScene1()
     {
-        Scene scene = EditorSceneManager.GetActiveScene();
-        if (scene.name != "SampleScene")
+        string scenePath = "Assets/Scenes/Scene1.unity";
+        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        // 1. Main Camera with CinemachineBrain
+        GameObject camObj = new GameObject("Main Camera");
+        camObj.tag = "MainCamera";
+        camObj.transform.position = new Vector3(0, 0, -10);
+        Camera cam = camObj.AddComponent<Camera>();
+        cam.orthographic = true;
+        cam.orthographicSize = 4f;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.12f, 0.13f, 0.17f);
+        camObj.AddComponent<AudioListener>();
+        camObj.AddComponent<CinemachineBrain>();
+
+        // 2. Simple ground platform using Tilemap
+        GameObject gridObj = new GameObject("Grid");
+        gridObj.AddComponent<Grid>();
+        GameObject floorObj = new GameObject("Tilemap_Floor");
+        floorObj.transform.parent = gridObj.transform;
+        Tilemap tm = floorObj.AddComponent<Tilemap>();
+        var r = floorObj.AddComponent<TilemapRenderer>();
+        r.sortingOrder = 0;
+        floorObj.AddComponent<TilemapCollider2D>();
+
+        Tile floorTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_7.asset");
+        for (int x = -8; x <= 8; x++)
         {
-            scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity");
+            tm.SetTile(new Vector3Int(x, -1, 0), floorTile);
         }
 
-        // Clean existing scene root objects except cameras/lights
-        var rootObjects = scene.GetRootGameObjects();
-        foreach (var obj in rootObjects)
-        {
-            if (obj.name != "Main Camera" && obj.name != "Directional Light")
-            {
-                Object.DestroyImmediate(obj);
-            }
-        }
+        // 3. Goober (Enemy) with 5 required components
+        Sprite gooberSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Sprites/SPA_Enemy_Right.png");
+        GameObject goober = new GameObject("Goober (Enemy)");
+        goober.transform.position = new Vector3(0, 0f, 0);
 
-        // 1. Setup Camera
-        Camera mainCam = Camera.main;
-        if (mainCam == null)
-        {
-            GameObject camObj = new GameObject("Main Camera");
-            camObj.tag = "MainCamera";
-            mainCam = camObj.AddComponent<Camera>();
-            camObj.AddComponent<AudioListener>();
-        }
-        mainCam.transform.position = new Vector3(0, 0, -10);
-        mainCam.transform.rotation = Quaternion.identity;
-        mainCam.orthographic = true;
-        mainCam.orthographicSize = 4f;
-        mainCam.clearFlags = CameraClearFlags.SolidColor;
-        mainCam.backgroundColor = new Color(0.13f, 0.12f, 0.16f);
+        var gooberSr = goober.AddComponent<SpriteRenderer>();
+        gooberSr.sprite = gooberSprite;
+        gooberSr.sortingOrder = 2;
 
-        if (mainCam.GetComponent<CinemachineBrain>() == null)
-        {
-            mainCam.gameObject.AddComponent<CinemachineBrain>();
-        }
+        var rb2d = goober.AddComponent<Rigidbody2D>();
+        rb2d.bodyType = RigidbodyType2D.Kinematic;
 
-        // 2. Setup Grid and Tilemaps
+        var col2d = goober.AddComponent<CapsuleCollider2D>();
+        col2d.offset = new Vector2(0f, -0.05f);
+        col2d.size = new Vector2(0.68f, 0.68f);
+        col2d.direction = CapsuleDirection2D.Vertical;
+
+        var anim = goober.AddComponent<Animator>();
+        anim.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Goober.controller");
+
+        goober.AddComponent<EnemyMovement>();
+
+        PrefabUtility.SaveAsPrefabAsset(goober, "Assets/Prefabs/Goober (Enemy).prefab");
+
+        // 4. Cinemachine Follow Camera
+        GameObject vcamObj = new GameObject("Follow Camera");
+        var vcam = vcamObj.AddComponent<CinemachineVirtualCamera>();
+        vcam.Follow = goober.transform;
+        vcam.m_Lens.OrthographicSize = 4f;
+
+        var framing = vcam.AddCinemachineComponent<CinemachineFramingTransposer>();
+        framing.m_CameraDistance = 10f;
+        framing.m_XDamping = 1f;
+        framing.m_YDamping = 1f;
+        framing.m_ZDamping = 1f;
+        framing.m_ScreenX = 0.5f;
+        framing.m_ScreenY = 0.5f;
+        framing.m_DeadZoneWidth = 0.1f;
+        framing.m_DeadZoneHeight = 0.1f;
+
+        EditorUtility.SetDirty(tm);
+        EditorUtility.SetDirty(floorObj);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, scenePath);
+    }
+
+    private static void BuildScene2()
+    {
+        string scenePath = "Assets/Scenes/Scene2.unity";
+        Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+        // 1. 2D Camera
+        GameObject camObj = new GameObject("Main Camera");
+        camObj.tag = "MainCamera";
+        camObj.transform.position = new Vector3(0, 0, -10);
+        Camera cam = camObj.AddComponent<Camera>();
+        cam.orthographic = true;
+        cam.orthographicSize = 6f;
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = new Color(0.12f, 0.13f, 0.17f);
+        camObj.AddComponent<AudioListener>();
+
+        // 2. Grid & Tilemaps
         GameObject gridObj = new GameObject("Grid");
         Grid grid = gridObj.AddComponent<Grid>();
         grid.cellSize = new Vector3(1f, 1f, 0f);
@@ -250,32 +328,28 @@ public static class Week2Setup
         var decoRenderer = decoObj.AddComponent<TilemapRenderer>();
         decoRenderer.sortingOrder = 1;
 
-        // Obstacles Layer (with 2D Collider)
+        // Obstacles Layer with Collider
         GameObject obstObj = new GameObject("Tilemap_Obstacles");
         obstObj.transform.parent = gridObj.transform;
         Tilemap obstMap = obstObj.AddComponent<Tilemap>();
         var obstRenderer = obstObj.AddComponent<TilemapRenderer>();
         obstRenderer.sortingOrder = 2;
-        var tilemapCol = obstObj.AddComponent<TilemapCollider2D>();
+        obstObj.AddComponent<TilemapCollider2D>();
 
-        // 3. Paint the Map (Width: -12 to 12, Height: -6 to 6)
-        Tile grassTile = GetTile(tileDict, "TilesetField_1_1") ?? GetTile(tileDict, "TilesetFloor_1_1");
-        Tile grassEdgeTop = GetTile(tileDict, "TilesetField_1_0");
-        Tile grassEdgeBottom = GetTile(tileDict, "TilesetField_1_2");
-        Tile pathTile = GetTile(tileDict, "TilesetFloor_2_1") ?? GetTile(tileDict, "TilesetField_2_1");
-        Tile flowerTile = GetTile(tileDict, "TilesetNature_1_8");
-        Tile flowerWhite = GetTile(tileDict, "TilesetNature_4_8");
-        Tile bushTile = GetTile(tileDict, "TilesetNature_0_7");
-        Tile rockTile = GetTile(tileDict, "TilesetNature_1_10") ?? GetTile(tileDict, "TilesetNature_0_10");
-        Tile treeTop = GetTile(tileDict, "TilesetNature_1_0");
-        Tile treeTrunk = GetTile(tileDict, "TilesetNature_1_1");
+        // 3. Load Persistent Tile Assets Directly
+        Tile grassTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_7.asset")
+                      ?? AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_4.asset");
+        Tile pathTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetField_1_1.asset");
+        Tile decoBush = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_0_10.asset");
+        Tile decoFlower = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_6_10.asset");
+        Tile obstRock = AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_0_8.asset")
+                     ?? AssetDatabase.LoadAssetAtPath<Tile>("Assets/Art/Tiles/TilesetNature_4_8.asset");
 
-        // Paint Ground
-        for (int x = -14; x <= 14; x++)
+        // Paint Ground (-10 to 10 X, -6 to 6 Y)
+        for (int x = -10; x <= 10; x++)
         {
-            for (int y = -8; y <= 8; y++)
+            for (int y = -6; y <= 6; y++)
             {
-                // Horizontal path running through y = -1 and y = 0
                 if (y == -1 || y == 0)
                 {
                     groundMap.SetTile(new Vector3Int(x, y, 0), pathTile ?? grassTile);
@@ -287,94 +361,66 @@ public static class Week2Setup
             }
         }
 
-        // Paint Decorations (flowers, grass tufts)
-        for (int x = -13; x <= 13; x += 2)
+        // Paint Decorations on upper and lower grass areas
+        for (int x = -8; x <= 8; x += 2)
         {
-            if (x % 3 == 0 && flowerTile != null)
-                decoMap.SetTile(new Vector3Int(x, 2, 0), flowerTile);
-            if (x % 4 == 0 && flowerWhite != null)
-                decoMap.SetTile(new Vector3Int(x, -3, 0), flowerWhite);
-            if (x % 5 == 0 && bushTile != null)
-                decoMap.SetTile(new Vector3Int(x, 1, 0), bushTile);
-        }
-
-        // Paint Obstacles & Trees (borders at y = 5, y = -6, and side barriers)
-        for (int x = -14; x <= 14; x += 2)
-        {
-            if (treeTop != null)
+            if (x % 3 == 0 && decoFlower != null)
             {
-                obstMap.SetTile(new Vector3Int(x, 5, 0), treeTop);
-                obstMap.SetTile(new Vector3Int(x, -5, 0), treeTop);
+                decoMap.SetTile(new Vector3Int(x, 2, 0), decoFlower);
+                decoMap.SetTile(new Vector3Int(x + 1, -3, 0), decoFlower);
             }
-            if (treeTrunk != null)
+            if (x % 4 == 0 && decoBush != null)
             {
-                obstMap.SetTile(new Vector3Int(x, 4, 0), treeTrunk);
-                obstMap.SetTile(new Vector3Int(x, -6, 0), treeTrunk);
+                decoMap.SetTile(new Vector3Int(x, 3, 0), decoBush);
+                decoMap.SetTile(new Vector3Int(x, -4, 0), decoBush);
             }
         }
 
-        // Side rocks
-        for (int y = -4; y <= 4; y += 2)
+        // Paint Obstacles at borders
+        for (int x = -9; x <= 9; x += 3)
         {
-            if (rockTile != null)
+            if (obstRock != null)
             {
-                obstMap.SetTile(new Vector3Int(-12, y, 0), rockTile);
-                obstMap.SetTile(new Vector3Int(12, y, 0), rockTile);
+                obstMap.SetTile(new Vector3Int(x, 5, 0), obstRock);
+                obstMap.SetTile(new Vector3Int(x, -5, 0), obstRock);
+            }
+        }
+        for (int y = -3; y <= 3; y += 2)
+        {
+            if (obstRock != null && y != -1 && y != 0)
+            {
+                obstMap.SetTile(new Vector3Int(-9, y, 0), obstRock);
+                obstMap.SetTile(new Vector3Int(9, y, 0), obstRock);
             }
         }
 
-        // 4. Create Goober (Enemy)
-        Sprite gooberSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/Art/Sprites/SPA_Enemy_Right.png");
-        GameObject goober = new GameObject("Goober (Enemy)");
-        goober.transform.position = new Vector3(0, -0.2f, 0);
+        EditorUtility.SetDirty(groundMap);
+        EditorUtility.SetDirty(groundObj);
+        EditorUtility.SetDirty(decoMap);
+        EditorUtility.SetDirty(decoObj);
+        EditorUtility.SetDirty(obstMap);
+        EditorUtility.SetDirty(obstObj);
 
-        var gooberSr = goober.AddComponent<SpriteRenderer>();
-        gooberSr.sprite = gooberSprite;
-        gooberSr.sortingOrder = 3; // In front of ground & decorations
-
-        var rb2d = goober.AddComponent<Rigidbody2D>();
-        rb2d.bodyType = RigidbodyType2D.Kinematic;
-
-        var col2d = goober.AddComponent<CapsuleCollider2D>();
-        col2d.offset = new Vector2(0f, -0.05f);
-        col2d.size = new Vector2(0.68f, 0.68f);
-        col2d.direction = CapsuleDirection2D.Vertical;
-
-        var anim = goober.AddComponent<Animator>();
-        anim.runtimeAnimatorController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>("Assets/Animations/Goober.controller");
-
-        goober.AddComponent<EnemyMovement>();
-
-        // Save Goober Prefab
-        PrefabUtility.SaveAsPrefabAsset(goober, "Assets/Prefabs/Goober (Enemy).prefab");
-
-        // 5. Create Cinemachine Follow Camera
-        GameObject vcamObj = new GameObject("Follow Camera");
-        var vcam = vcamObj.AddComponent<CinemachineVirtualCamera>();
-        vcam.Follow = goober.transform;
-        vcam.m_Lens.OrthographicSize = 4f;
-
-        var framingTransposer = vcam.AddCinemachineComponent<CinemachineFramingTransposer>();
-        framingTransposer.m_CameraDistance = 10f;
-        framingTransposer.m_XDamping = 1f;
-        framingTransposer.m_YDamping = 1f;
-        framingTransposer.m_ZDamping = 1f;
-        framingTransposer.m_TrackedObjectOffset = Vector3.zero;
-
-        // Save Scene
         EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
-        AssetDatabase.SaveAssets();
+        EditorSceneManager.SaveScene(scene, scenePath);
     }
 
-    private static Tile GetTile(Dictionary<string, Tile> dict, string name)
+    private static void UpdateBuildSettings()
     {
-        if (dict.TryGetValue(name, out Tile t)) return t;
-        // Fallback: search key containing name
-        foreach (var kvp in dict)
+        EditorBuildSettingsScene[] scenes = new EditorBuildSettingsScene[]
         {
-            if (kvp.Key.Contains(name)) return kvp.Value;
+            new EditorBuildSettingsScene("Assets/Scenes/Scene1.unity", true),
+            new EditorBuildSettingsScene("Assets/Scenes/Scene2.unity", true)
+        };
+        EditorBuildSettings.scenes = scenes;
+    }
+
+    private static void RemoveLegacySampleScene()
+    {
+        string legacyPath = "Assets/Scenes/SampleScene.unity";
+        if (File.Exists(legacyPath))
+        {
+            AssetDatabase.DeleteAsset(legacyPath);
         }
-        return null;
     }
 }
