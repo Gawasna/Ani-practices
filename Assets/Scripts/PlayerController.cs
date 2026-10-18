@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
 using UnityEngine;
+using Cinemachine;
 
 public class PlayerController : MonoBehaviour
 {
@@ -30,6 +31,19 @@ public class PlayerController : MonoBehaviour
         if (myRigidbody != null)
         {
             gravityScaleAtStart = myRigidbody.gravityScale;
+        }
+
+        // Auto-bind Cinemachine cameras to follow Player
+        var vcams = Object.FindObjectsByType<CinemachineVirtualCameraBase>();
+        foreach (var vcam in vcams)
+        {
+            if (vcam.Follow == null) vcam.Follow = transform;
+        }
+        var sdc = Object.FindAnyObjectByType<CinemachineStateDrivenCamera>();
+        if (sdc != null)
+        {
+            if (sdc.Follow == null) sdc.Follow = transform;
+            if (sdc.m_AnimatedTarget == null) sdc.m_AnimatedTarget = myAnimator;
         }
     }
 
@@ -79,8 +93,8 @@ public class PlayerController : MonoBehaviour
 
         if (jumpPressed)
         {
-            int groundMask = LayerMask.GetMask("Ground", "Bouncing");
-            if (groundMask == 0) groundMask = 1 << 6; // Layer 6 fallback
+            int groundMask = LayerMask.GetMask("Ground", "Bouncing", "Platforms");
+            if (groundMask == 0) groundMask = (1 << 6) | (1 << 10); // Layer 6 Ground fallback
             if (myFeetCollider != null && myFeetCollider.IsTouchingLayers(groundMask))
             {
                 myRigidbody.linearVelocity = new Vector2(myRigidbody.linearVelocity.x, jumpSpeed);

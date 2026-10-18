@@ -464,7 +464,7 @@ public static class Week2Setup
 
         // 1. Destroy old Ginger (Player) if exists
         var oldPlayer = GameObject.Find("Ginger (Player)");
-        Vector3 spawnPos = new Vector3(-16.3f, 6.5f, 0f);
+        Vector3 spawnPos = new Vector3(-16.3f, 4.46f, 0f);
         if (oldPlayer != null)
         {
             spawnPos = oldPlayer.transform.position;
@@ -499,6 +499,7 @@ public static class Week2Setup
         rb.gravityScale = 3f;
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
 
         // Physics material
         var slippery = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/Slippery.physicsMaterial2D");
@@ -507,13 +508,14 @@ public static class Week2Setup
         var bodyCol = goober.AddComponent<CapsuleCollider2D>();
         bodyCol.direction = CapsuleDirection2D.Vertical;
         bodyCol.offset = new Vector2(0f, -0.05f);
-        bodyCol.size = new Vector2(0.68f, 0.68f);
+        bodyCol.size = new Vector2(0.7f, 0.8f);
         if (slippery != null) bodyCol.sharedMaterial = slippery;
 
         // Feet collider (BoxCollider2D) for ground detection
         var feetCol = goober.AddComponent<BoxCollider2D>();
-        feetCol.offset = new Vector2(0f, -0.35f);
-        feetCol.size = new Vector2(0.5f, 0.15f);
+        feetCol.isTrigger = true;
+        feetCol.offset = new Vector2(0f, -0.42f);
+        feetCol.size = new Vector2(0.45f, 0.1f);
 
         // Animator
         var anim = goober.AddComponent<Animator>();
