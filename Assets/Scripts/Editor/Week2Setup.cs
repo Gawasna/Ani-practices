@@ -217,7 +217,9 @@ public static class Week2Setup
                     metas.Add(meta);
                 }
             }
+#pragma warning disable CS0618
             importer.spritesheet = metas.ToArray();
+#pragma warning restore CS0618
             importer.SaveAndReimport();
         }
     }
@@ -442,7 +444,7 @@ public static class Week2Setup
         // 5. Connect Cinemachine Virtual Camera to Ginger
         if (gingerInstance != null)
         {
-            CinemachineVirtualCamera vcam = Object.FindObjectOfType<CinemachineVirtualCamera>();
+            CinemachineVirtualCamera vcam = Object.FindAnyObjectByType<CinemachineVirtualCamera>();
             if (vcam != null)
             {
                 vcam.Follow = gingerInstance.transform;
